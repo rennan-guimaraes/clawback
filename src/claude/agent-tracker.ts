@@ -1,6 +1,13 @@
 import type { Api } from "grammy";
 import { stat } from "node:fs/promises";
+import { resolve } from "node:path";
+import { homedir } from "node:os";
 import { escapeHtml } from "../telegram/format";
+
+const ALLOWED_OUTPUT_PREFIXES = [
+  resolve(homedir(), ".claude"),
+  resolve("/tmp"),
+];
 
 const POLL_INTERVAL_MS = 5_000;
 const STABLE_THRESHOLD_MS = 10_000;
@@ -41,6 +48,17 @@ export class AgentTracker {
 
   track(agentId: string, outputFile: string, description: string): void {
     if (this.agents.has(agentId)) return;
+
+    const resolved = resolve(outputFile);
+    const isSafe = ALLOWED_OUTPUT_PREFIXES.some(
+      (prefix) => resolved.startsWith(prefix + "/") || resolved === prefix
+    );
+    if (!isSafe) {
+      console.warn(
+        `[AgentTracker] Rejected output file outside allowed dirs: ${resolved}`
+      );
+      return;
+    }
 
     this.agents.set(agentId, {
       agentId,

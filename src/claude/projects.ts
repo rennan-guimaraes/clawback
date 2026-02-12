@@ -1,7 +1,15 @@
 import { readdir, access } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { Project } from "../types/state";
 import { env } from "../env";
+
+function assertWithinProjectsDir(fullPath: string): void {
+  const resolved = resolve(fullPath);
+  const allowed = resolve(env.PROJECTS_DIR);
+  if (!resolved.startsWith(allowed + "/") && resolved !== allowed) {
+    throw new Error("Path outside PROJECTS_DIR");
+  }
+}
 
 const PROJECT_MARKERS = [
   ".git",
@@ -43,6 +51,8 @@ export async function listEntries(relativePath: string = ""): Promise<DirEntry[]
     ? join(env.PROJECTS_DIR, relativePath)
     : env.PROJECTS_DIR;
 
+  assertWithinProjectsDir(fullPath);
+
   let entries;
   try {
     entries = await readdir(fullPath, { withFileTypes: true });
@@ -76,8 +86,7 @@ export async function listEntries(relativePath: string = ""): Promise<DirEntry[]
  * Resolve a relative path to a full Project.
  */
 export function resolveProject(relativePath: string): Project {
-  return {
-    name: relativePath,
-    path: join(env.PROJECTS_DIR, relativePath),
-  };
+  const fullPath = join(env.PROJECTS_DIR, relativePath);
+  assertWithinProjectsDir(fullPath);
+  return { name: relativePath, path: fullPath };
 }
