@@ -1,0 +1,83 @@
+import { readdir, access } from "node:fs/promises";
+import { join } from "node:path";
+import type { Project } from "../types/state";
+import { env } from "../env";
+
+const PROJECT_MARKERS = [
+  ".git",
+  "package.json",
+  "Cargo.toml",
+  "pyproject.toml",
+  "go.mod",
+  "deno.json",
+  "bun.lock",
+];
+
+const IGNORED = new Set(["node_modules", ".git", "dist", "build", ".next"]);
+
+export interface DirEntry {
+  name: string;
+  path: string;
+  isProject: boolean;
+}
+
+async function checkIsProject(dirPath: string): Promise<boolean> {
+  for (const marker of PROJECT_MARKERS) {
+    try {
+      await access(join(dirPath, marker));
+      return true;
+    } catch {
+      // marker not found
+    }
+  }
+  return false;
+}
+
+/**
+ * List entries at a specific path inside PROJECTS_DIR.
+ * Returns folders and projects at that level.
+ * relativePath is relative to PROJECTS_DIR (empty string = root).
+ */
+export async function listEntries(relativePath: string = ""): Promise<DirEntry[]> {
+  const fullPath = relativePath
+    ? join(env.PROJECTS_DIR, relativePath)
+    : env.PROJECTS_DIR;
+
+  let entries;
+  try {
+    entries = await readdir(fullPath, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const results: DirEntry[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name.startsWith(".")) continue;
+    if (IGNORED.has(entry.name)) continue;
+
+    const entryPath = join(fullPath, entry.name);
+    const relPath = relativePath
+      ? `${relativePath}/${entry.name}`
+      : entry.name;
+
+    results.push({
+      name: entry.name,
+      path: relPath,
+      isProject: await checkIsProject(entryPath),
+    });
+  }
+
+  return results.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Resolve a relative path to a full Project.
+ */
+export function resolveProject(relativePath: string): Project {
+  return {
+    name: relativePath,
+    path: join(env.PROJECTS_DIR, relativePath),
+  };
+}
