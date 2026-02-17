@@ -1,51 +1,55 @@
 import type { Context } from "grammy";
+import { InlineKeyboard } from "grammy";
 import { getState } from "../state";
 import type { ModelShort } from "../../types/state";
 import { MODEL_MAP } from "../../types/state";
 
-const MODEL_ALIASES: Record<string, ModelShort> = {
-  s: "sonnet",
-  sonnet: "sonnet",
-  o: "opus",
-  opus: "opus",
-  h: "haiku",
-  haiku: "haiku",
+const MODEL_LABELS: Record<ModelShort, string> = {
+  sonnet: "Sonnet",
+  opus: "Opus",
+  haiku: "Haiku",
 };
 
 export async function modelHandler(ctx: Context): Promise<void> {
   const chatId = ctx.chat?.id;
   if (!chatId) return;
 
-  const text = ctx.message?.text ?? "";
-  const arg = text.replace(/^\/model\s*/, "").trim().toLowerCase();
+  const state = getState(chatId);
+  const keyboard = new InlineKeyboard();
 
-  if (!arg) {
-    const state = getState(chatId);
-    await ctx.reply(
-      `Modelo atual: <b>${state.model}</b>\n\nUso: /model &lt;s|o|h&gt;\n` +
-      "s = sonnet, o = opus, h = haiku",
-      { parse_mode: "HTML" }
-    );
-    return;
+  for (const [model, label] of Object.entries(MODEL_LABELS)) {
+    const current = model === state.model ? `${label} (atual)` : label;
+    keyboard.text(current, `model:${model}`);
   }
 
-  const model = MODEL_ALIASES[arg];
-  if (!model) {
-    await ctx.reply("Modelo invalido. Use: s (sonnet), o (opus), h (haiku)");
-    return;
-  }
+  await ctx.reply(`Modelo atual: <b>${MODEL_LABELS[state.model]}</b>`, {
+    parse_mode: "HTML",
+    reply_markup: keyboard,
+  });
+}
+
+export async function handleModelSelect(
+  ctx: Context,
+  chatId: number,
+  model: string
+): Promise<void> {
+  if (!(model in MODEL_LABELS)) return;
 
   const state = getState(chatId);
-  state.model = model;
+  const selected = model as ModelShort;
+  state.model = selected;
 
-  // If there's an active SDK session, update the model live
   if (state.sdkSession) {
     try {
-      await state.sdkSession.query.setModel(MODEL_MAP[model]);
+      await state.sdkSession.query.setModel(MODEL_MAP[selected]);
     } catch {
       // May fail if session just ended
     }
   }
 
-  await ctx.reply(`Modelo alterado para <b>${model}</b>.`, { parse_mode: "HTML" });
+  try {
+    await ctx.editMessageText(`Modelo alterado para <b>${MODEL_LABELS[selected]}</b>.`, {
+      parse_mode: "HTML",
+    });
+  } catch { /* ignore */ }
 }

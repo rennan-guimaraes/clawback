@@ -5,6 +5,8 @@ import { listSessions } from "../../claude/sessions";
 import { browseDir } from "./projects";
 import { buildSessionsKeyboard } from "../keyboards/sessions";
 import { escapeHtml } from "../../telegram/format";
+import { handleModeSelect } from "./mode";
+import { handleModelSelect } from "./model";
 
 export async function callbackHandler(ctx: Context): Promise<void> {
   const data = ctx.callbackQuery?.data;
@@ -40,6 +42,15 @@ export async function callbackHandler(ctx: Context): Promise<void> {
       break;
     case "perm_deny_all":
       await handlePermissionDenyAll(ctx, chatId);
+      break;
+    case "new_project":
+      await handleNewProject(ctx, chatId, value);
+      break;
+    case "mode":
+      await handleModeSelect(ctx, chatId, value);
+      break;
+    case "model":
+      await handleModelSelect(ctx, chatId, value);
       break;
     default:
       break;
@@ -233,4 +244,16 @@ async function handlePermissionDenyAll(
   try {
     await ctx.editMessageText(`Negadas ${count} permissoes.`);
   } catch { /* ignore */ }
+}
+
+async function handleNewProject(
+  ctx: Context,
+  chatId: number,
+  value: string
+): Promise<void> {
+  const browsePath = value === "__root__" ? "" : value;
+  const state = getState(chatId);
+  state.awaitingInput = { type: "project_name", context: { browsePath } };
+
+  await ctx.reply("Digite o nome do novo projeto:");
 }

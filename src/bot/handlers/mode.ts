@@ -1,41 +1,55 @@
 import type { Context } from "grammy";
+import { InlineKeyboard } from "grammy";
 import { getState } from "../state";
 import type { PermissionMode } from "../../types/state";
 
-const VALID_MODES: PermissionMode[] = ["default", "plan"];
+const MODE_LABELS: Record<PermissionMode, string> = {
+  default: "Default",
+  plan: "Plan",
+  acceptEdits: "Accept Edits",
+  bypassPermissions: "Bypass All",
+};
 
 export async function modeHandler(ctx: Context): Promise<void> {
   const chatId = ctx.chat?.id;
   if (!chatId) return;
 
-  const text = ctx.message?.text ?? "";
-  const arg = text.replace(/^\/mode\s*/, "").trim().toLowerCase();
+  const state = getState(chatId);
+  const keyboard = new InlineKeyboard();
 
-  if (!arg) {
-    const state = getState(chatId);
-    await ctx.reply(
-      `Modo atual: <b>${state.permissionMode}</b>\n\nUso: /mode &lt;plan|default&gt;`,
-      { parse_mode: "HTML" }
-    );
-    return;
+  for (const [mode, label] of Object.entries(MODE_LABELS)) {
+    const current = mode === state.permissionMode ? `${label} (atual)` : label;
+    keyboard.text(current, `mode:${mode}`);
   }
 
-  if (!VALID_MODES.includes(arg as PermissionMode)) {
-    await ctx.reply(`Modo invalido. Use: ${VALID_MODES.join(", ")}`);
-    return;
-  }
+  await ctx.reply(`Modo atual: <b>${MODE_LABELS[state.permissionMode]}</b>`, {
+    parse_mode: "HTML",
+    reply_markup: keyboard,
+  });
+}
+
+export async function handleModeSelect(
+  ctx: Context,
+  chatId: number,
+  mode: string
+): Promise<void> {
+  if (!(mode in MODE_LABELS)) return;
 
   const state = getState(chatId);
-  state.permissionMode = arg as PermissionMode;
+  const selected = mode as PermissionMode;
+  state.permissionMode = selected;
 
-  // If there's an active SDK session, update the permission mode live
   if (state.sdkSession) {
     try {
-      await state.sdkSession.query.setPermissionMode(arg as PermissionMode);
+      await state.sdkSession.query.setPermissionMode(selected);
     } catch {
       // May fail if session just ended
     }
   }
 
-  await ctx.reply(`Modo alterado para <b>${arg}</b>.`, { parse_mode: "HTML" });
+  try {
+    await ctx.editMessageText(`Modo alterado para <b>${MODE_LABELS[selected]}</b>.`, {
+      parse_mode: "HTML",
+    });
+  } catch { /* ignore */ }
 }
