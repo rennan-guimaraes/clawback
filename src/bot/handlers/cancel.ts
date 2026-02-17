@@ -7,6 +7,12 @@ export async function cancelHandler(ctx: Context): Promise<void> {
 
   const state = getState(chatId);
 
+  if (state.awaitingInput) {
+    state.awaitingInput = null;
+    await ctx.reply("Operacao cancelada.");
+    return;
+  }
+
   if (!state.sdkSession && !state.processingTurn) {
     await ctx.reply("Nenhum processo ativo.");
     return;

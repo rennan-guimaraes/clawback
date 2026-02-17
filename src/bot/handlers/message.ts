@@ -11,10 +11,13 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import { getState } from "../state";
 import { createSDKSession, formatToolDescription } from "../../claude/sdk-session";
+import { validateProjectName, createProject } from "../../claude/projects";
+import { listSessions } from "../../claude/sessions";
 import { createStreamingController, type StreamingController } from "../../telegram/streaming";
 import { buildContextHeader } from "../../telegram/sender";
 import { escapeHtml } from "../../telegram/format";
 import { buildPermissionsKeyboard, formatPermissionsMessage } from "../keyboards/permissions";
+import { buildSessionsKeyboard } from "../keyboards/sessions";
 import { AgentTracker, parseAgentLaunchResult } from "../../claude/agent-tracker";
 import type { PermissionDenial } from "../../types/state";
 
@@ -25,12 +28,65 @@ export async function messageHandler(ctx: Context): Promise<void> {
 
   const state = getState(chatId);
 
+  if (state.awaitingInput) {
+    await handleAwaitedInput(ctx, chatId, text);
+    return;
+  }
+
   if (!state.project) {
     await ctx.reply("Nenhuma sessao ativa. Use /projects pra comecar.");
     return;
   }
 
   await sendToSDK(ctx, chatId, text);
+}
+
+async function handleAwaitedInput(ctx: Context, chatId: number, text: string): Promise<void> {
+  const state = getState(chatId);
+  if (!state.awaitingInput) return;
+
+  if (state.awaitingInput.type === "project_name") {
+    await handleProjectNameInput(ctx, chatId, text);
+  }
+}
+
+async function handleProjectNameInput(ctx: Context, chatId: number, text: string): Promise<void> {
+  const state = getState(chatId);
+  const browsePath = state.awaitingInput?.context.browsePath ?? "";
+  state.awaitingInput = null;
+
+  const name = text.trim();
+  const error = validateProjectName(name);
+  if (error) {
+    await ctx.reply(error);
+    return;
+  }
+
+  try {
+    const project = await createProject(browsePath, name);
+    state.project = project;
+    state.session = null;
+
+    const sessions = await listSessions(project.path);
+
+    if (sessions.length === 0) {
+      await ctx.reply(
+        `Projeto <b>${escapeHtml(project.name)}</b> criado.\n\nEnvie uma mensagem pra criar uma nova sessao.`,
+        { parse_mode: "HTML" }
+      );
+    } else {
+      await ctx.reply(
+        `Projeto <b>${escapeHtml(project.name)}</b> criado.`,
+        {
+          parse_mode: "HTML",
+          reply_markup: buildSessionsKeyboard(sessions),
+        }
+      );
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro ao criar projeto.";
+    await ctx.reply(msg);
+  }
 }
 
 /**

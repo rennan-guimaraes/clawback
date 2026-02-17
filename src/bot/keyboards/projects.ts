@@ -21,6 +21,9 @@ export function buildBrowseKeyboard(
   // Ensure we're on a new row
   if (entries.length % 2 === 1) keyboard.row();
 
+  // New project button
+  keyboard.text("+ Novo Projeto", `new_project:${currentPath || "__root__"}`).row();
+
   // Back button if not at root
   if (currentPath) {
     const parent = currentPath.includes("/")
