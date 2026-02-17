@@ -26,7 +26,7 @@ export const MODEL_MAP: Record<ModelShort, ModelId> = {
   haiku: "claude-haiku-4-5-20251001",
 };
 
-export type PermissionMode = "default" | "plan";
+export type PermissionMode = "default" | "plan" | "acceptEdits" | "bypassPermissions";
 
 export interface PermissionDenial {
   toolName: string;
@@ -49,6 +49,11 @@ export interface SDKSessionHandle {
   startedAt: number;
 }
 
+export interface AwaitingInput {
+  type: "project_name";
+  context: { browsePath: string };
+}
+
 export interface ChatState {
   project: Project | null;
   session: { id: string; summary: string } | null;
@@ -63,6 +68,8 @@ export interface ChatState {
   pendingPermissions: PermissionDenial[] | null;
   /** Tracks background agents launched during the session */
   agentTracker: AgentTracker | null;
+  /** Awaiting text input from user (e.g. new project name) */
+  awaitingInput: AwaitingInput | null;
 }
 
 export function createDefaultState(): ChatState {
@@ -76,5 +83,6 @@ export function createDefaultState(): ChatState {
     currentStreaming: null,
     pendingPermissions: null,
     agentTracker: null,
+    awaitingInput: null,
   };
 }
