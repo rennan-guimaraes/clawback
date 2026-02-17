@@ -26,8 +26,9 @@ export function buildBrowseKeyboard(
 
   // Back button if not at root
   if (currentPath) {
-    const parent = currentPath.includes("/")
-      ? currentPath.slice(0, currentPath.lastIndexOf("/"))
+    const lastSep = Math.max(currentPath.lastIndexOf("/"), currentPath.lastIndexOf("\\"));
+    const parent = lastSep > 0
+      ? currentPath.slice(0, lastSep)
       : "";
     keyboard.text("<< Voltar", `browse:${parent || "__root__"}`).row();
   }

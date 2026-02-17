@@ -9,8 +9,9 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 function resolveHome(path: string): string {
-  if (path.startsWith("~/")) {
-    return path.replace("~", Bun.env.HOME ?? "");
+  if (path.startsWith("~/") || path === "~") {
+    const { homedir } = require("node:os") as typeof import("node:os");
+    return path.replace("~", homedir());
   }
   return path;
 }

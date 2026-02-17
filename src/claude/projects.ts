@@ -1,12 +1,12 @@
 import { readdir, access, mkdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join, resolve, sep } from "node:path";
 import type { Project } from "../types/state";
 import { env } from "../env";
 
 function assertWithinProjectsDir(fullPath: string): void {
   const resolved = resolve(fullPath);
   const allowed = resolve(env.PROJECTS_DIR);
-  if (!resolved.startsWith(allowed + "/") && resolved !== allowed) {
+  if (!resolved.startsWith(allowed + sep) && resolved !== allowed) {
     throw new Error("Path outside PROJECTS_DIR");
   }
 }

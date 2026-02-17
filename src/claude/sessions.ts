@@ -4,8 +4,10 @@ import { homedir } from "node:os";
 import type { SessionEntry } from "../types/state";
 
 function getClaudeProjectDir(projectPath: string): string {
-  // Claude encodes path: /Users/foo/Desktop/code/myproject -> -Users-foo-Desktop-code-myproject
-  const encoded = projectPath.replace(/\//g, "-");
+  // Claude encodes path by replacing separators with dashes:
+  //   /Users/foo/code/myproject -> -Users-foo-code-myproject
+  //   C:\Users\foo\code\myproject -> C-Users-foo-code-myproject
+  const encoded = projectPath.replace(/[\\/]/g, "-");
   return join(homedir(), ".claude", "projects", encoded);
 }
 

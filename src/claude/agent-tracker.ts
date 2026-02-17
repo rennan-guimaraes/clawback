@@ -1,12 +1,12 @@
 import type { Api } from "grammy";
 import { stat } from "node:fs/promises";
-import { resolve } from "node:path";
-import { homedir } from "node:os";
+import { resolve, sep } from "node:path";
+import { homedir, tmpdir } from "node:os";
 import { escapeHtml } from "../telegram/format";
 
 const ALLOWED_OUTPUT_PREFIXES = [
   resolve(homedir(), ".claude"),
-  resolve("/tmp"),
+  resolve(tmpdir()),
 ];
 
 const POLL_INTERVAL_MS = 5_000;
@@ -51,7 +51,7 @@ export class AgentTracker {
 
     const resolved = resolve(outputFile);
     const isSafe = ALLOWED_OUTPUT_PREFIXES.some(
-      (prefix) => resolved.startsWith(prefix + "/") || resolved === prefix
+      (prefix) => resolved.startsWith(prefix + sep) || resolved === prefix
     );
     if (!isSafe) {
       console.warn(
