@@ -47,8 +47,8 @@ Claude Code is powerful but tied to your terminal. ClawBack untethers it:
 ### Setup
 
 ```bash
-git clone https://github.com/rennanguimaraes/remote-claude.git
-cd remote-claude
+git clone https://github.com/rennan-guimaraes/clawback.git
+cd clawback
 bun install
 ```
 
